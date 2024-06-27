@@ -2,6 +2,7 @@
 import telepot
 import configparser
 import re
+import mysql.connector as mysql
 
 
 class FlizixBot(telepot.helper.ChatHandler):
@@ -44,9 +45,35 @@ class FlizixBot(telepot.helper.ChatHandler):
     def validRegex(self, regex, text):
         return re.match(regex, text) is not None
 
+    def checkTelegramUserOnDB(self):
+        try:
+            cnx = mysql.connect(
+                user=self.db_user,
+                password=self.db_password,
+                database=self.db_name)
+            db = cnx.cursor()
+            db.execute(f"select * from users where telegram_id = {self.user}")
+            user = db.fetchall()
+            cnx.close()
+            return user
+        except:
+            self.sender.sendMessage('Something went wrong, try again later please :)')
+
     def start(self):
         # TODO: Description of starting message
-        self.sender.sendMessage('Empecemos perrill@')
+        # verify if user is already registered
+        user = self.checkTelegramUserOnDB()
+        if user:
+            self.sender.sendMessage(
+                "You already are registered on flizix, dont't worry and if you need help write /help")
+        else:
+            self.sender.sendMessage(
+                'Welcome to Flizix. This a private project, I will recolect your data if you decide stay. Write /addMe to register your user at database and start using this tool ;)')
+
+    def addMe(self):
+        # this method add user to database and start using the tool
+        pass
+
 
     def default(self):
         # TODO: Write default message when wrong command

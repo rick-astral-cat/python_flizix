@@ -1,27 +1,29 @@
 import configparser
-
-DB_NAME = None
-DB_HOST = None
-DB_USER = None
-DB_PASSWORD = None
-
-
-def read_config():
-    global DB_NAME
-    global DB_HOST
-    global DB_USER
-    global DB_PASSWORD
-
-    config = configparser.ConfigParser()
-    config.read('config.ini')
-
-    # Extract DB info
-    DB_NAME = config.get('DATABASE', 'db_name')
-    DB_HOST = config.get('DATABASE', 'db_host')
-    DB_USER = config.get('DATABASE', 'db_user')
-    DB_PASSWORD = config.get('DATABASE', 'db_password')
+import flizixbot
+import telepot
+import time
+from telepot.loop import MessageLoop
+from telepot.delegate import pave_event_space, per_chat_id, create_open
 
 if __name__ == '__main__':
-    # Read config.ini data
-    read_config()
-    print(DB_NAME, DB_HOST, DB_USER, DB_PASSWORD)
+    # Read Telegram Token from config.ini
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    token = config['TELEGRAM']['token']
+
+    bot = telepot.DelegatorBot(
+        token,
+        [
+            pave_event_space()(
+                per_chat_id(),
+                create_open,
+                flizixbot.FlizixBot,
+                timeout=10
+            )
+        ]
+    )
+
+    MessageLoop(bot).run_as_thread()
+    print("Telegram started...")
+    while True:
+        time.sleep(10)

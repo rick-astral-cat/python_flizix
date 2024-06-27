@@ -18,7 +18,7 @@ if __name__ == '__main__':
                 per_chat_id(),
                 create_open,
                 flizixbot.FlizixBot,
-                timeout=10
+                timeout=100
             )
         ]
     )

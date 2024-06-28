@@ -16,11 +16,15 @@ class FlizixBot(telepot.helper.ChatHandler):
         self.db_host = config.get('DATABASE', 'db_host')
         self.db_user = config.get('DATABASE', 'db_user')
         self.db_password = config.get('DATABASE', 'db_password')
+
+        # Telegram data
         self.user = None
+        self.username = None
 
     def on_chat_message(self, msg):
         # Save user ID on every interaction
         self.user = msg['from']['id']
+        self.username = msg['from']['first_name'] + ' ' + msg['from']['last_name']
 
         content_type, chat_type, chat_id = telepot.glance(msg)
         if content_type == 'text':
@@ -32,10 +36,11 @@ class FlizixBot(telepot.helper.ChatHandler):
         self.textMsgSwitch(msgTxt)
 
     def textMsgSwitch(self, msg):
-        regex = r'^\/[a-z][a-z0-9]*$'
+        regex = r'^\/[a-z][a-z0-9A-Z]*$'
         if self.validRegex(regex, msg):
             msgItems = {
                 '/start': self.start,
+                '/addMe': self.addMe,
             }
             result = msgItems.get(msg, self.default)
             return result()
@@ -72,7 +77,23 @@ class FlizixBot(telepot.helper.ChatHandler):
 
     def addMe(self):
         # this method add user to database and start using the tool
-        pass
+        user = self.checkTelegramUserOnDB()
+        if user:
+            self.sender.sendMessage('You are already registered and can use this amazing tool ;)')
+        else:
+            try:
+                cnx = mysql.connect(
+                    user=self.db_user,
+                    password=self.db_password,
+                    database=self.db_name)
+                db = cnx.cursor()
+                db.execute(f"insert into users values (NULL, '{self.username}', 'a@test.com', {self.user})")
+                cnx.commit()
+                if db.lastrowid:
+                    self.sender.sendMessage(f"Congratulations, you are part of flizix member (by now). You user ID is: {db.lastrowid} in case you need it. You can start using commands to manage your finances")
+                    cnx.close()
+            except Exception as e:
+                self.sender.sendMessage(f'Something went wrong, try again later please :). This is the message in case you need it: {e}')
 
 
     def default(self):

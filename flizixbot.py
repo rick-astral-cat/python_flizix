@@ -36,13 +36,22 @@ class FlizixBot(telepot.helper.ChatHandler):
         self.textMsgSwitch(msgTxt)
 
     def textMsgSwitch(self, msg):
+        # Regex to validate commands of type "/command": /start, /addMe, /other123
         regex = r'^\/[a-z][a-z0-9A-Z]*$'
-        if self.validRegex(regex, msg):
+
+        # Split message in two. This means separate command and data
+        msg_spplitted = msg.split(' ', 1)
+        if len(msg_spplitted) > 1:
+            command, data = msg_spplitted
+        else:
+            command = msg_spplitted[0]
+
+        if self.validRegex(regex, command):
             msgItems = {
-                '/start': self.start,
-                '/addMe': self.addMe,
+                '/start': lambda: self.start(),
+                '/addMe': lambda: self.addMe(data),
             }
-            result = msgItems.get(msg, self.default)
+            result = msgItems.get(command, self.default)
             return result()
         else:
             self.sender.sendMessage('Command not recognized')
@@ -75,7 +84,8 @@ class FlizixBot(telepot.helper.ChatHandler):
             self.sender.sendMessage(
                 'Welcome to Flizix. This a private project, I will recolect your data if you decide stay. Write /addMe to register your user at database and start using this tool ;)')
 
-    def addMe(self):
+    def addMe(self, msg):
+        print(msg)
         # this method add user to database and start using the tool
         user = self.checkTelegramUserOnDB()
         if user:

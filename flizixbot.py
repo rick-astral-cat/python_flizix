@@ -40,6 +40,7 @@ class FlizixBot(telepot.helper.ChatHandler):
         regex = r'^\/[a-z][a-z0-9A-Z]*$'
 
         # Split message in two. This means separate command and data
+        data = None
         msg_spplitted = msg.split(' ', 1)
         if len(msg_spplitted) > 1:
             command, data = msg_spplitted
@@ -84,27 +85,36 @@ class FlizixBot(telepot.helper.ChatHandler):
             self.sender.sendMessage(
                 'Welcome to Flizix. This a private project, I will recolect your data if you decide stay. Write /addMe to register your user at database and start using this tool ;)')
 
-    def addMe(self, msg):
-        print(msg)
+    def addMe(self, email):
         # this method add user to database and start using the tool
         user = self.checkTelegramUserOnDB()
         if user:
             self.sender.sendMessage('You are already registered and can use this amazing tool ;)')
         else:
+            if email is None:
+                self.sender.sendMessage('You email is missing. Please use command: /addMe test@example.com')
+                return
+
+            # Validate second parameter is a valid email
+            if not self.validRegex(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", email):
+                self.sender.sendMessage('Write a valid email like: test@example.com')
+                return
+
             try:
                 cnx = mysql.connect(
                     user=self.db_user,
                     password=self.db_password,
                     database=self.db_name)
                 db = cnx.cursor()
-                db.execute(f"insert into users values (NULL, '{self.username}', 'a@test.com', {self.user})")
+                db.execute(f"insert into users values (NULL, '{self.username}', '{email}', {self.user})")
                 cnx.commit()
                 if db.lastrowid:
-                    self.sender.sendMessage(f"Congratulations, you are part of flizix member (by now). You user ID is: {db.lastrowid} in case you need it. You can start using commands to manage your finances")
+                    self.sender.sendMessage(
+                        f"Congratulations, you are part of flizix member (by now). You user ID is: {db.lastrowid} in case you need it. You can start using commands to manage your finances")
                     cnx.close()
             except Exception as e:
-                self.sender.sendMessage(f'Something went wrong, try again later please :). This is the message in case you need it: {e}')
-
+                self.sender.sendMessage(
+                    f'Something went wrong, try again later please :). This is the message in case you need it: {e}')
 
     def default(self):
         # TODO: Write default message when wrong command

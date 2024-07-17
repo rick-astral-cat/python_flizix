@@ -63,7 +63,7 @@ class FlizixBot(telepot.helper.ChatHandler):
     def validRegex(self, regex, text):
         return re.match(regex, text) is not None
 
-    def checkTelegramUserOnDB(self):
+    def user_id_by_telegram_user(self):
         try:
             cnx = mysql.connect(
                 user=self.db_user,
@@ -74,13 +74,13 @@ class FlizixBot(telepot.helper.ChatHandler):
             user = db.fetchone()
             cnx.close()
             return user
-        except:
-            self.sender.sendMessage('Something went wrong, try again later please :)')
+        except Exception as e:
+            raise e
 
     def start(self):
         # TODO: Description of starting message
         # verify if user is already registered
-        user = self.checkTelegramUserOnDB()
+        user = self.user_id_by_telegram_user()
         if user:
             self.sender.sendMessage(
                 "You already are registered on flizix, dont't worry and if you need help write /help")
@@ -90,7 +90,7 @@ class FlizixBot(telepot.helper.ChatHandler):
 
     def addMe(self, email):
         # this method add user to database and start using the tool
-        user = self.checkTelegramUserOnDB()
+        user = self.user_id_by_telegram_user()
         if user:
             self.sender.sendMessage('You are already registered and can use this amazing tool ;)')
         else:
@@ -130,6 +130,12 @@ class FlizixBot(telepot.helper.ChatHandler):
                 return
         except Exception as e:
             self.sender.sendMessage(f"There was an error: {e}")
+            return
+
+        # Validate user is registered
+        user_id = self.user_id_by_telegram_user()
+        if not user_id:
+            self.sender.sendMessage("Send /start to use this tool ;)")
             return
 
         # Split in case almost we receive month to set
@@ -211,22 +217,7 @@ class FlizixBot(telepot.helper.ChatHandler):
             except Exception as e:
                 self.sender.sendMessage(f"There was an error: {e}")
 
-    def user_id_by_telegram_user(self):
-        try:
-            cnx = mysql.connect(
-                user=self.db_user,
-                password=self.db_password,
-                database=self.db_name)
-            db = cnx.cursor()
-            db.execute(f"select * from users where telegram_id = {self.user}")
-            user_id = db.fetchone()[0]
-            # db.execute(f"insert into month_data values (NULL, {user_id}, '2000-{month}-01', )")
-            cnx.close()
-            return user_id
-        except Exception as e:
-            self.sender.sendMessage(
-                f'Something went wrong getting user id. This is the message in case you need it: {e}')
-            return False
+        print(f"{amount} {month}")
 
     def default(self):
         # TODO: Write default message when wrong command

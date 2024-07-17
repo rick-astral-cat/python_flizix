@@ -1,4 +1,6 @@
 # Flizix bot class
+import datetime
+
 import telepot
 import configparser
 import re
@@ -51,6 +53,7 @@ class FlizixBot(telepot.helper.ChatHandler):
             msgItems = {
                 '/start': lambda: self.start(),
                 '/addMe': lambda: self.addMe(data),
+                '/earn': lambda: self.add_month_earn(data)
             }
             result = msgItems.get(command, self.default)
             return result()
@@ -68,7 +71,7 @@ class FlizixBot(telepot.helper.ChatHandler):
                 database=self.db_name)
             db = cnx.cursor()
             db.execute(f"select * from users where telegram_id = {self.user}")
-            user = db.fetchall()
+            user = db.fetchone()
             cnx.close()
             return user
         except:
@@ -115,6 +118,115 @@ class FlizixBot(telepot.helper.ChatHandler):
             except Exception as e:
                 self.sender.sendMessage(
                     f'Something went wrong, try again later please :). This is the message in case you need it: {e}')
+
+    def add_month_earn(self, data):
+        # This will update/add month earn. By default, if not month is set it will take current month
+        # If a record with this month is set it will just update the amount
+        # Validate user is registered
+        try:
+            user_id = self.user_id_by_telegram_user()
+            if not user_id:
+                self.sender.sendMessage("Send /start to use this tool ;)")
+                return
+        except Exception as e:
+            self.sender.sendMessage(f"There was an error: {e}")
+            return
+
+        # Split in case almost we receive month to set
+        if data is None:
+            self.sender.sendMessage("Use '/earn amount' or '/earn amount month' to add/update you month earns")
+            return
+        month = None
+        if " " in data:
+            amount, month = data.split(" ", 1)
+            # Validate valid number
+            if not self.validRegex(r'^\d+$', amount):
+                self.sender.sendMessage("The amount you sent is not a valid number")
+                return
+            else:
+                amount = int(amount)
+            # Validate month
+            if not self.validRegex(r"^(0[1-9]|1[0-2])$", month):
+                self.sender.sendMessage("The month you introduce is no a valid month number. Use 01, 02 ... 12")
+                return
+        else:
+            # Validate valid number
+            if not self.validRegex(r'^\d+$', data):   # TODO: Create regex for decimal numbers on double field on database
+                self.sender.sendMessage("The amount you sent is not a valid number")
+                return
+            else:
+                amount = int(data)
+            month = f"{datetime.datetime.now().month:02d}"
+
+        # Get record if exist on database for current telegram user
+        user_id = self.user_id_by_telegram_user()
+        year = datetime.datetime.now().year
+        month_earn = None
+        try:
+            cnx = mysql.connect(
+                user=self.db_user,
+                password=self.db_password,
+                database=self.db_name)
+            db = cnx.cursor()
+            db.execute(f"select * from month_data where user = {user_id[0]} and date like '{year}-{month}-%'")
+            month_earn = db.fetchone()
+            cnx.close()
+
+        except Exception as e:
+            self.sender.sendMessage(f"There was an error: {e}")
+
+        # Decide if update or create register for month earn
+        # Update register
+        if month_earn:
+            try:
+                cnx = mysql.connect(
+                    user=self.db_user,
+                    password=self.db_password,
+                    database=self.db_name)
+                db = cnx.cursor()
+                db.execute(
+                    f"update month_data set total_earn = {amount} where user = {user_id[0]} and id = {month_earn[0]}"
+                )
+                cnx.commit()
+                cnx.close()
+                self.sender.sendMessage(f"Month earn updated to: ${amount}")
+
+            except Exception as e:
+                self.sender.sendMessage(f"There was an error: {e}")
+        # Create new record
+        else:
+            try:
+                cnx = mysql.connect(
+                    user=self.db_user,
+                    password=self.db_password,
+                    database=self.db_name)
+                db = cnx.cursor()
+                db.execute(
+                    f"insert into month_data values (NULL, {user_id[0]}, '{year}-{month}-01', {amount}, 0.00)"
+                )
+                cnx.commit()
+                cnx.close()
+                self.sender.sendMessage(f"Month earn registered with amount: ${amount}")
+
+            except Exception as e:
+                self.sender.sendMessage(f"There was an error: {e}")
+
+    def user_id_by_telegram_user(self):
+        try:
+            cnx = mysql.connect(
+                user=self.db_user,
+                password=self.db_password,
+                database=self.db_name)
+            db = cnx.cursor()
+            db.execute(f"select * from users where telegram_id = {self.user}")
+            user_id = db.fetchone()[0]
+            # db.execute(f"insert into month_data values (NULL, {user_id}, '2000-{month}-01', )")
+            cnx.close()
+            return user_id
+        except Exception as e:
+            self.sender.sendMessage(
+                f'Something went wrong getting user id. This is the message in case you need it: {e}')
+            return False
 
     def default(self):
         # TODO: Write default message when wrong command

@@ -157,11 +157,11 @@ class FlizixBot(telepot.helper.ChatHandler):
                 return
         else:
             # Validate valid number
-            if not self.validRegex(r'^\d+$', data):   # TODO: Create regex for decimal numbers on double field on database
+            if not self.validRegex(r'^\d+(\.\d{1,2})?$', data):
                 self.sender.sendMessage("The amount you sent is not a valid number")
                 return
             else:
-                amount = int(data)
+                amount = float(data)
             month = f"{datetime.datetime.now().month:02d}"
 
         # Get record if exist on database for current telegram user

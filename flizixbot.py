@@ -23,6 +23,26 @@ class FlizixBot(telepot.helper.ChatHandler):
         self.user = None
         self.username = None
 
+    def connect_db(self):
+        """Return a database connection"""
+        return mysql.connect(
+            user=self.db_user,
+            password=self.db_password,
+            database=self.db_name
+        )
+
+    def execute_query(self, query, params=None, fetchone=False):
+        """Execute a query and optionally fetch one record"""
+        try:
+            with self.connect_db() as cnx:
+                with cnx.cursor() as db:
+                    db.execute(query, params or ())
+                    if fetchone:
+                        return db.fetchone()
+                    cnx.commit()
+        except Exception as e:
+            self.sender.sendMessage(f"There was an error: {e}")
+
     def on_chat_message(self, msg):
         # Save user ID on every interaction
         self.user = msg['from']['id']

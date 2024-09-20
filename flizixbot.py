@@ -41,7 +41,7 @@ class FlizixBot(telepot.helper.ChatHandler):
                         return db.fetchone()
                     cnx.commit()
         except Exception as e:
-            self.sender.sendMessage(f"There was an error: {e}")
+            raise e
 
     def on_chat_message(self, msg):
         # Save user ID on every interaction
@@ -84,18 +84,7 @@ class FlizixBot(telepot.helper.ChatHandler):
         return re.match(regex, text) is not None
 
     def user_id_by_telegram_user(self):
-        try:
-            cnx = mysql.connect(
-                user=self.db_user,
-                password=self.db_password,
-                database=self.db_name)
-            db = cnx.cursor()
-            db.execute(f"select * from users where telegram_id = {self.user}")
-            user = db.fetchone()
-            cnx.close()
-            return user
-        except Exception as e:
-            raise e
+        return self.execute_query("SELECT * FROM users WHERE telegram_id = %s", (self.user,), fetchone=True)
 
     def start(self):
         # TODO: Description of starting message

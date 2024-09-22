@@ -40,13 +40,17 @@ class FlizixBot(telepot.helper.ChatHandler):
                     if fetchone:
                         return db.fetchone()
                     cnx.commit()
+                    if query.strip().upper().startswith("INSERT"):
+                        return db.lastrowid
         except Exception as e:
             raise e
 
     def on_chat_message(self, msg):
         # Save user ID on every interaction
         self.user = msg['from']['id']
-        self.username = msg['from']['first_name'] + ' ' + msg['from']['last_name']
+        first_name = msg['from'].get('first_name', 'Unknown')
+        last_name = msg['from'].get('last_name', '')
+        self.username = first_name + (' ' + last_name if last_name else '')
 
         content_type, chat_type, chat_id = telepot.glance(msg)
         if content_type == 'text':
@@ -89,44 +93,44 @@ class FlizixBot(telepot.helper.ChatHandler):
     def start(self):
         # TODO: Description of starting message
         # verify if user is already registered
-        user = self.user_id_by_telegram_user()
-        if user:
-            self.sender.sendMessage(
-                "You already are registered on flizix, dont't worry and if you need help write /help")
-        else:
-            self.sender.sendMessage(
-                'Welcome to Flizix. This a private project, I will recolect your data if you decide stay. Write /addMe to register your user at database and start using this tool ;)')
+        try:
+            user = self.user_id_by_telegram_user()
+            if user:
+                self.sender.sendMessage(
+                    "You already are registered on flizix, dont't worry and if you need help write /help")
+            else:
+                self.sender.sendMessage(
+                    'Welcome to Flizix. This a private project, I will recolect your data if you decide stay. Write /addMe to register your user at database and start using this tool ;)')
+        except Exception as e:
+            self.sender.sendMessage(f"There was an error: {e}")
+            return
 
     def addMe(self, email):
         # this method add user to database and start using the tool
-        user = self.user_id_by_telegram_user()
-        if user:
-            self.sender.sendMessage('You are already registered and can use this amazing tool ;)')
-        else:
-            if email is None:
-                self.sender.sendMessage('You email is missing. Please use command: /addMe test@example.com')
-                return
+        try:
+            user = self.user_id_by_telegram_user()
+            if user:
+                self.sender.sendMessage('You are already registered and can use this amazing tool ;)')
+            else:
+                if email is None:
+                    self.sender.sendMessage('You email is missing. Please use command: /addMe test@example.com')
+                    return
 
-            # Validate second parameter is a valid email
-            if not self.validRegex(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", email):
-                self.sender.sendMessage('Write a valid email like: test@example.com')
-                return
-
-            try:
-                cnx = mysql.connect(
-                    user=self.db_user,
-                    password=self.db_password,
-                    database=self.db_name)
-                db = cnx.cursor()
-                db.execute(f"insert into users values (NULL, '{self.username}', '{email}', {self.user})")
-                cnx.commit()
-                if db.lastrowid:
+                # Validate second parameter is a valid email
+                if not self.validRegex(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", email):
+                    self.sender.sendMessage('Write a valid email like: test@example.com')
+                    return
+                db_user_id = self.execute_query(
+                    "INSERT INTO USERS VALUES (NULL, %s, %s, %s)",
+                    (self.username, email, self.user)
+                )
+                if db_user_id:
                     self.sender.sendMessage(
-                        f"Congratulations, you are part of flizix member (by now). You user ID is: {db.lastrowid} in case you need it. You can start using commands to manage your finances")
-                    cnx.close()
-            except Exception as e:
-                self.sender.sendMessage(
-                    f'Something went wrong, try again later please :). This is the message in case you need it: {e}')
+                        f"Congratulations, you are part of flizix member (by now). You user ID is: {db_user_id} "
+                        f"in case you need it. You can start using commands to manage your finances")
+        except Exception as e:
+            self.sender.sendMessage(f"There was an error: {e}")
+            return
 
     def add_month_earn(self, data):
         # This will update/add month earn. By default, if not month is set it will take current month

@@ -133,6 +133,7 @@ class FlizixBot(telepot.helper.ChatHandler):
             return
 
     def add_month_earn(self, data):
+        # TODO: Create a registered user function to validate every command that needs user registration present
         # This will update/add month earn. By default, if not month is set it will take current month
         # If a record with this month is set it will just update the amount
         # Validate user is registered
@@ -141,100 +142,62 @@ class FlizixBot(telepot.helper.ChatHandler):
             if not user_id:
                 self.sender.sendMessage("Send /start to use this tool ;)")
                 return
-        except Exception as e:
-            self.sender.sendMessage(f"There was an error: {e}")
-            return
-
-        # Validate user is registered
-        user_id = self.user_id_by_telegram_user()
-        if not user_id:
-            self.sender.sendMessage("Send /start to use this tool ;)")
-            return
-
-        # Split in case almost we receive month to set
-        if data is None:
-            self.sender.sendMessage("Use '/earn amount' or '/earn amount month' to add/update you month earns")
-            return
-        month = None
-        if " " in data:
-            amount, month = data.split(" ", 1)
-            # Validate valid number
-            if not self.validRegex(r'^\d+$', amount):
-                self.sender.sendMessage("The amount you sent is not a valid number")
+            # Split in case almost we receive month to set
+            if data is None:
+                self.sender.sendMessage("Use '/earn amount' or '/earn amount month' to add/update you month earns")
                 return
+
+            # Get month number and validate in case passed as parameter
+            month = None
+            year = datetime.datetime.now().year
+            if " " in data:
+                amount, month = data.split(" ", 1)
+                # Validate valid number
+                if not self.validRegex(r'^\d+$', amount):
+                    self.sender.sendMessage("The amount you sent is not a valid number")
+                    return
+                else:
+                    amount = int(amount)
+                # Validate month
+                if not self.validRegex(r"^(0[1-9]|1[0-2])$", month):
+                    self.sender.sendMessage("The month you introduce is no a valid month number. Use 01, 02 ... 12")
+                    return
             else:
-                amount = int(amount)
-            # Validate month
-            if not self.validRegex(r"^(0[1-9]|1[0-2])$", month):
-                self.sender.sendMessage("The month you introduce is no a valid month number. Use 01, 02 ... 12")
-                return
-        else:
-            # Validate valid number
-            if not self.validRegex(r'^\d+(\.\d{1,2})?$', data):
-                self.sender.sendMessage("The amount you sent is not a valid number")
-                return
-            else:
-                amount = float(data)
-            month = f"{datetime.datetime.now().month:02d}"
+                # Validate valid number
+                if not self.validRegex(r'^\d+(\.\d{1,2})?$', data):
+                    self.sender.sendMessage("The amount you sent is not a valid number")
+                    return
+                else:
+                    amount = float(data)
+                month = f"{datetime.datetime.now().month:02d}"
 
-        # Get record if exist on database for current telegram user
-        user_id = self.user_id_by_telegram_user()
-        year = datetime.datetime.now().year
-        month_earn = None
-        try:
-            cnx = mysql.connect(
-                user=self.db_user,
-                password=self.db_password,
-                database=self.db_name)
-            db = cnx.cursor()
-            db.execute(f"select * from month_data where user = {user_id[0]} and date like '{year}-{month}-%'")
-            month_earn = db.fetchone()
-            cnx.close()
-
-        except Exception as e:
-            self.sender.sendMessage(f"There was an error: {e}")
-
-        # Decide if update or create register for month earn
-        # Update register
-        if month_earn:
-            try:
-                cnx = mysql.connect(
-                    user=self.db_user,
-                    password=self.db_password,
-                    database=self.db_name)
-                db = cnx.cursor()
-                db.execute(
-                    f"update month_data set total_earn = {amount} where user = {user_id[0]} and id = {month_earn[0]}"
+            month_earn = self.execute_query(
+                "SELECT * FROM month_data WHERE user = %s and date like %s",
+                (user_id[0], f"{year}-{month}-%"),
+                fetchone=True
+            )
+            if month_earn:
+                self.execute_query(
+                    "UPDATE month_data SET total_earn = %s WHERE user = %s AND id = %s",
+                    (amount, user_id[0], month_earn[0])
                 )
-                cnx.commit()
-                cnx.close()
                 self.sender.sendMessage(f"Month earn updated to: ${amount}")
-
-            except Exception as e:
-                self.sender.sendMessage(f"There was an error: {e}")
-        # Create new record
-        else:
-            try:
-                cnx = mysql.connect(
-                    user=self.db_user,
-                    password=self.db_password,
-                    database=self.db_name)
-                db = cnx.cursor()
-                db.execute(
-                    f"insert into month_data values (NULL, {user_id[0]}, '{year}-{month}-01', {amount}, 0.00)"
+            # Create new record
+            else:
+                inserted = self.execute_query(
+                    "INSERT INTO month_data VALUES (NULL, %s, '%s-%s-01', %s, 0.00)",
+                    (user_id[0], year, month, amount),
                 )
-                cnx.commit()
-                cnx.close()
-                self.sender.sendMessage(f"Month earn registered with amount: ${amount}")
+                if inserted:
+                    self.sender.sendMessage(f"Month earn registered with amount: ${amount}")
 
-            except Exception as e:
-                self.sender.sendMessage(f"There was an error: {e}")
-
-        print(f"{amount} {month}")
+        except Exception as e:
+            self.sender.sendMessage(f"There was an error: {e}")
+            return
 
     def default(self):
         # TODO: Write default message when wrong command
         self.sender.sendMessage('Command not recognized by default')
 
     def on_close(self, ex):
-        print(f"Connection with user {self.user} lost")
+        print(f"Connection with user {self.user} closed or lost")

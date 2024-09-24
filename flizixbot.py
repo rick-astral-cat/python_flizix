@@ -77,7 +77,8 @@ class FlizixBot(telepot.helper.ChatHandler):
             msgItems = {
                 '/start': lambda: self.start(),
                 '/addMe': lambda: self.addMe(data),
-                '/earn': lambda: self.add_month_earn(data)
+                '/earn': lambda: self.add_month_earn(data),
+                '/addRecPay': lambda: self.add_recurrent_payment(data)
             }
             result = msgItems.get(command, self.default)
             return result()
@@ -190,6 +191,33 @@ class FlizixBot(telepot.helper.ChatHandler):
                 )
                 if inserted:
                     self.sender.sendMessage(f"Month earn registered with amount: ${amount}")
+
+        except Exception as e:
+            self.sender.sendMessage(f"There was an error: {e}")
+            return
+
+    def add_recurrent_payment(self, data):
+        # here we add a recurrent payment on database
+        try:
+            user_id = self.user_id_by_telegram_user()
+            if not user_id:
+                self.sender.sendMessage("Send /start to use this tool ;)")
+                return
+
+            if data is None or " " not in data:
+                self.sender.sendMessage(
+                    "Use '/addRecPay name amount' or 'addRecPay name amount comment' to add a recurrent payment you do"
+                )
+                return
+
+            # Split data in name, amount and optional comment if exists
+            name, amount, comment, *_ = data.split(" ") + [None,]*3
+            # Validate valid number
+            if not self.validRegex(r'^\d+$', amount):
+                self.sender.sendMessage("The amount you sent is not a valid number")
+                return
+            else:
+                amount = float(amount)
 
         except Exception as e:
             self.sender.sendMessage(f"There was an error: {e}")

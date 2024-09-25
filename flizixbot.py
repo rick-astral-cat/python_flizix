@@ -219,6 +219,14 @@ class FlizixBot(telepot.helper.ChatHandler):
             else:
                 amount = float(amount)
 
+            # Database insert
+            inserted = self.execute_query(
+                "INSERT INTO recurrent_payments VALUES (NULL, %s, %s, %s, %s)",
+                (user_id[0], name, amount, comment if comment else 'NULL')
+            )
+            if inserted:
+                self.sender.sendMessage(f"Recurrent payment ({name}) registered")
+
         except Exception as e:
             self.sender.sendMessage(f"There was an error: {e}")
             return

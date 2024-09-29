@@ -23,6 +23,52 @@ class FlizixBot(telepot.helper.ChatHandler):
         self.user = None
         self.username = None
 
+        # Global Commands
+        self.global_commands = {
+            'start': lambda: self.start(),
+            'help': lambda: self.help()
+        }
+
+        # Default commands, used when every interaction starts
+        self.default_commands = {
+            '/start': {
+                'command': self.global_commands['start']
+            },
+            '/help': {
+                'command': self.global_commands['help']
+            },
+            '/addMe': {
+                'command': lambda: self.addMe(data=None),
+            },
+            '/earn': {
+                'command': lambda: self.add_month_earn(data=None),
+            },
+            '/addRecPay': {
+                'command': lambda: self.add_recurrent_payment(data=None)
+            }
+        }
+
+        # All commands tree
+        self.all_commands = {
+            '/start': {
+                'command': self.global_commands['start']
+            },
+            '/addMe': {
+                'command': lambda: self.addMe(data=None),
+            },
+            '/earn': {
+                'command': lambda: self.add_month_earn(data=None),
+            },
+            '/addRecPay': {
+                'command': lambda: self.add_recurrent_payment(data=None)
+            }
+        }
+        # Default available commands
+        self.avl_commands = self.default_commands
+
+    def get_default_commands(self):
+        return self.default_commands
+
     def connect_db(self):
         """Return a database connection"""
         return mysql.connect(
@@ -67,21 +113,15 @@ class FlizixBot(telepot.helper.ChatHandler):
 
         # Split message in two. This means separate command and data
         data = None
-        msg_spplitted = msg.split(' ', 1)
-        if len(msg_spplitted) > 1:
-            command, data = msg_spplitted
+        msg_splitted = msg.split(' ', 1)
+        if len(msg_splitted) > 1:
+            command, data = msg_splitted
         else:
-            command = msg_spplitted[0]
+            command = msg_splitted[0]
 
         if self.validRegex(regex, command):
-            msgItems = {
-                '/start': lambda: self.start(),
-                '/addMe': lambda: self.addMe(data),
-                '/earn': lambda: self.add_month_earn(data),
-                '/addRecPay': lambda: self.add_recurrent_payment(data)
-            }
-            result = msgItems.get(command, self.default)
-            return result()
+            result = self.avl_commands.get(command, {'command': self.default})
+            return result['command']()
         else:
             self.sender.sendMessage('Command not recognized')
 

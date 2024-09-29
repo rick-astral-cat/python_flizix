@@ -66,6 +66,9 @@ class FlizixBot(telepot.helper.ChatHandler):
         # Default available commands
         self.avl_commands = self.default_commands
 
+        # Current command
+        self.current_command = None
+
     def get_default_commands(self):
         return self.default_commands
 
@@ -120,8 +123,8 @@ class FlizixBot(telepot.helper.ChatHandler):
             command = msg_splitted[0]
 
         if self.validRegex(regex, command):
-            result = self.avl_commands.get(command, {'command': self.default})
-            return result['command']()
+            self.current_command = self.avl_commands.get(command, {'command': self.default})
+            return self.current_command['command']()
         else:
             self.sender.sendMessage('Command not recognized')
 

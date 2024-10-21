@@ -29,38 +29,67 @@ class FlizixBot(telepot.helper.ChatHandler):
             'help': lambda: self.help()
         }
 
+        # Recurrent payments group commands
+        self.c_rec_payments_group = {
+            '/addRecPay': {
+                'name': 'addRecPay',
+                'command': lambda: self.add_recurrent_payment(data=None),
+                'default': False,
+                'avl_commands': ''
+            }
+        }
+
         # Default commands, used when every interaction starts
         self.default_commands = {
             '/start': {
-                'command': self.global_commands['start']
+                'name': 'start',
+                'command': self.global_commands['start'],
+                'default': True,
+                'avl_commands': ''
             },
             '/help': {
-                'command': self.global_commands['help']
+                'name': 'help',
+                'command': self.global_commands['help'],
+                'default': True,
+                'avl_commands': ''
             },
             '/addMe': {
+                'name': 'addMe',
                 'command': lambda: self.addMe(data=None),
+                'default': True,
+                'avl_commands': ''
             },
             '/earn': {
+                'name': 'earn',
                 'command': lambda: self.add_month_earn(data=None),
+                'default': False,
+                'avl_commands': ''
             },
-            '/addRecPay': {
-                'command': lambda: self.add_recurrent_payment(data=None)
+            '/recPay': {
+                'name': 'recPay',
+                'command': lambda: self.recurrent_payment(data=None),
+                'default': True,
+                'avl_commands': ''
             }
         }
 
         # All commands tree
         self.all_commands = {
             '/start': {
-                'command': self.global_commands['start']
+                'command': self.global_commands['start'],
+                'default': True,
             },
             '/addMe': {
                 'command': lambda: self.addMe(data=None),
+                'default': True,
             },
             '/earn': {
                 'command': lambda: self.add_month_earn(data=None),
+                'default': True,
             },
             '/addRecPay': {
-                'command': lambda: self.add_recurrent_payment(data=None)
+                'command': lambda: self.add_recurrent_payment(data=None),
+                'default': True,
             }
         }
         # Default available commands
@@ -69,8 +98,36 @@ class FlizixBot(telepot.helper.ChatHandler):
         # Current command
         self.current_command = None
 
+        # Last command
+        self.last_command = None
+
+        # Set initial default available commands
+        for command in self.avl_commands:
+            # We initiate recurrent payments command list with default and its own commands
+            if command == "/recPay":
+                self.avl_commands[command]['avl_commands'] = self.default_commands | self.c_rec_payments_group
+                for sub_command in self.c_rec_payments_group:
+                    self.c_rec_payments_group[sub_command]['avl_commands'] = self.avl_commands[command]['avl_commands']
+            else:
+                self.avl_commands[command]['avl_commands'] = self.default_commands
+
+    def update_available_commands(self):
+        # This method will update available commands on every interaction according to current command
+        self.avl_commands = self.current_command['avl_commands']
+
+    def set_last_command(self):
+        self.last_command = self.current_command
+
     def get_default_commands(self):
         return self.default_commands
+
+    def get_default_answer(self):
+        return {
+            'name': 'default',
+            'command': lambda: self.default(),
+            'default': True,
+            'avl_commands': self.default_commands
+        }
 
     def connect_db(self):
         """Return a database connection"""
@@ -123,7 +180,9 @@ class FlizixBot(telepot.helper.ChatHandler):
             command = msg_splitted[0]
 
         if self.validRegex(regex, command):
-            self.current_command = self.avl_commands.get(command, {'command': self.default})
+            self.current_command = self.avl_commands.get(command, self.get_default_answer())
+            self.update_available_commands()
+            self.set_last_command()
             return self.current_command['command']()
         else:
             self.sender.sendMessage('Command not recognized')
@@ -238,6 +297,9 @@ class FlizixBot(telepot.helper.ChatHandler):
         except Exception as e:
             self.sender.sendMessage(f"There was an error: {e}")
             return
+
+    def recurrent_payment(self, data=None):
+        self.sender.sendMessage(f"Recurrent payment menu entered")
 
     def add_recurrent_payment(self, data):
         # here we add a recurrent payment on database

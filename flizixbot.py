@@ -1,5 +1,6 @@
 # Flizix bot class
 import datetime
+import textwrap
 
 import telepot
 import configparser
@@ -29,18 +30,8 @@ class FlizixBot(telepot.helper.ChatHandler):
             'help': lambda: self.help()
         }
 
-        # Recurrent payments group commands
-        self.c_rec_payments_group = {
-            '/addRecPay': {
-                'name': 'addRecPay',
-                'command': lambda: self.add_recurrent_payment(data=None),
-                'default': False,
-                'avl_commands': ''
-            }
-        }
-
-        # Default commands, used when every interaction starts
-        self.default_commands = {
+        # All commands tree
+        self.all_commands = {
             '/start': {
                 'name': 'start',
                 'command': self.global_commands['start'],
@@ -70,28 +61,29 @@ class FlizixBot(telepot.helper.ChatHandler):
                 'command': lambda: self.recurrent_payment(data=None),
                 'default': True,
                 'avl_commands': ''
+            },
+            '/addRecPay': {
+                'name': 'addRecPay',
+                'command': lambda: self.add_recurrent_payment(data=None),
+                'default': False,
+                'avl_commands': ''
             }
         }
 
-        # All commands tree
-        self.all_commands = {
-            '/start': {
-                'command': self.global_commands['start'],
-                'default': True,
-            },
-            '/addMe': {
-                'command': lambda: self.addMe(data=None),
-                'default': True,
-            },
-            '/earn': {
-                'command': lambda: self.add_month_earn(data=None),
-                'default': True,
-            },
-            '/addRecPay': {
-                'command': lambda: self.add_recurrent_payment(data=None),
-                'default': True,
-            }
+        # Recurrent payments group commands
+        self.c_rec_payments_group = {
+            '/addRecPay': self.all_commands['/addRecPay']
         }
+
+        # Default commands, used when every interaction starts
+        self.default_commands = {
+            '/start': self.all_commands['/start'],
+            '/help': self.all_commands['/help'],
+            '/addMe': self.all_commands['/addMe'],
+            '/earn': self.all_commands['/earn'],
+            '/recPay': self.all_commands['/recPay']
+        }
+
         # Default available commands
         self.avl_commands = self.default_commands
 
@@ -335,6 +327,18 @@ class FlizixBot(telepot.helper.ChatHandler):
         except Exception as e:
             self.sender.sendMessage(f"There was an error: {e}")
             return
+
+    def help(self, message=None):
+        message = message or textwrap.dedent("""
+            Don't worry, you can use next <b>commands</b>:\n\n
+            /start -> Init welcome message to flizix :)\n
+            /help -> Show help according to current menu and all available commands in there. Also you can use \"/help command\"
+            to extract help to specified command. Example: <u>/help earn</u>\n
+            /addMe -> This command subscribe you to flizix platform\n
+            /earn -> Set/Update month earn\n
+            /recPay -> Enters to recurrent payments menu where you can manage them
+        """)
+        self.sender.sendMessage(message, parse_mode = "HTML")
 
     def default(self):
         # TODO: Write default message when wrong command

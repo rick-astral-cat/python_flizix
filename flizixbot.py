@@ -27,7 +27,7 @@ class FlizixBot(telepot.helper.ChatHandler):
         # Global Commands
         self.global_commands = {
             'start': lambda: self.start(),
-            'help': lambda: self.help()
+            'help': lambda data: self.help(data)
         }
 
         # All commands tree
@@ -46,25 +46,25 @@ class FlizixBot(telepot.helper.ChatHandler):
             },
             '/addMe': {
                 'name': 'addMe',
-                'command': lambda: self.addMe(data=None),
+                'command': lambda data: self.addMe(data),
                 'default': True,
                 'avl_commands': ''
             },
             '/earn': {
                 'name': 'earn',
-                'command': lambda: self.add_month_earn(data=None),
+                'command': lambda data: self.add_month_earn(data),
                 'default': False,
                 'avl_commands': ''
             },
             '/recPay': {
                 'name': 'recPay',
-                'command': lambda: self.recurrent_payment(data=None),
+                'command': lambda data: self.recurrent_payment(data),
                 'default': True,
                 'avl_commands': ''
             },
             '/addRecPay': {
                 'name': 'addRecPay',
-                'command': lambda: self.add_recurrent_payment(data=None),
+                'command': lambda data: self.add_recurrent_payment(data),
                 'default': False,
                 'avl_commands': ''
             }
@@ -179,7 +179,7 @@ class FlizixBot(telepot.helper.ChatHandler):
             self.current_command = self.avl_commands.get(command, self.get_default_answer())
             self.update_available_commands()
             self.set_last_command()
-            return self.current_command['command']()
+            return self.current_command['command'](data)
         else:
             self.sender.sendMessage('Command not recognized')
 

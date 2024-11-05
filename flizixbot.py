@@ -105,6 +105,10 @@ class FlizixBot(telepot.helper.ChatHandler):
 
     def update_available_commands(self):
         # This method will update available commands on every interaction according to current command
+        if self.current_command['name'] == "default" and self.last_command:
+            self.avl_commands = self.last_command['avl_commands']
+            return
+
         self.avl_commands = self.current_command['avl_commands']
 
     def set_last_command(self):

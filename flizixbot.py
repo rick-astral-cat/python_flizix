@@ -30,43 +30,74 @@ class FlizixBot(telepot.helper.ChatHandler):
             'help': lambda data: self.help(data)
         }
 
+        self.default_help = """
+                Don't worry, you can use next <b>commands</b>:\n\n
+                /start -> Init welcome message to flizix :)\n
+                /help -> Show help according to current menu and all available commands in there. Also you can use \"/help command\"
+                to extract help to specified command. Example: <u>/help earn</u>\n
+                /addMe -> This command subscribe you to flizix platform\n
+                /earn -> Set/Update month earn\n
+                /recPay -> Enters to recurrent payments menu where you can manage them\n
+            """.replace("  ", "")
+
         # All commands tree
         self.all_commands = {
             '/start': {
                 'name': 'start',
                 'command': self.global_commands['start'],
                 'default': True,
-                'avl_commands': ''
+                'avl_commands': '',
+                'help': 'This is the welcome command, please. Use /help'
             },
             '/help': {
                 'name': 'help',
                 'command': self.global_commands['help'],
                 'default': True,
-                'avl_commands': ''
+                'avl_commands': '',
+                'help': 'Really?'
             },
             '/addMe': {
                 'name': 'addMe',
                 'command': lambda data: self.addMe(data),
                 'default': True,
-                'avl_commands': ''
+                'avl_commands': '',
+                'help': """Use to subscribe to flizix platform, it's free by now ;).\n
+                    Use -> <i>/addMe email</i>
+                    Example -> /addMe test@domain.com\n
+                    Notes -> Your telegram name will be used as username on our database
+                """.replace("  ", "")
             },
             '/earn': {
                 'name': 'earn',
                 'command': lambda data: self.add_month_earn(data),
                 'default': False,
-                'avl_commands': ''
+                'avl_commands': '',
+                'help': """Use to set/update current or specific month earn.\n
+                    Use -> <i>/earn amount</i>
+                    Example -> /earn 15000
+                    --------------------------
+                    Use -> <i>/earn amount month</i>
+                    Example -> /earn 15000 08
+                """.replace("  ", "")
             },
             '/recPay': {
                 'name': 'recPay',
                 'command': lambda data: self.recurrent_payment(data),
                 'default': True,
-                'avl_commands': ''
+                'avl_commands': '',
+                'help': """This menu let you manage your recurrent payments with next available commands\n
+                    /addRecPay -> Add a new recurrent payment
+                    """.replace("  ", "")
             },
             '/addRecPay': {
                 'name': 'addRecPay',
                 'command': lambda data: self.add_recurrent_payment(data),
                 'default': False,
-                'avl_commands': ''
+                'avl_commands': '',
+                'help': """Use to add new recurrent payment like month payments.\n
+                    Use -> <i>/addRecPay name amount</i>\n
+                    Example: /addRecPay Gym 300
+                    """.replace("  ", "")
             }
         }
 
@@ -112,7 +143,9 @@ class FlizixBot(telepot.helper.ChatHandler):
         self.avl_commands = self.current_command['avl_commands']
 
     def set_last_command(self):
-        self.last_command = self.current_command
+        # Set last command only when current command is different from default or help
+        if self.current_command['name'] not in ['default', 'help']:
+            self.last_command = self.current_command
 
     def get_default_commands(self):
         return self.default_commands
@@ -120,9 +153,10 @@ class FlizixBot(telepot.helper.ChatHandler):
     def get_default_answer(self):
         return {
             'name': 'default',
-            'command': lambda: self.default(),
+            'command': lambda data: self.default(),
             'default': True,
-            'avl_commands': self.default_commands
+            'avl_commands': self.default_commands,
+            'help': self.default_help
         }
 
     def connect_db(self):
@@ -178,8 +212,8 @@ class FlizixBot(telepot.helper.ChatHandler):
         if self.validRegex(regex, command):
             self.current_command = self.avl_commands.get(command, self.get_default_answer())
             self.update_available_commands()
+            self.current_command['command'](data)
             self.set_last_command()
-            return self.current_command['command'](data)
         else:
             self.sender.sendMessage('Command not recognized')
 
@@ -332,17 +366,24 @@ class FlizixBot(telepot.helper.ChatHandler):
             self.sender.sendMessage(f"There was an error: {e}")
             return
 
-    def help(self, message=None):
-        message = message or textwrap.dedent("""
-            Don't worry, you can use next <b>commands</b>:\n\n
-            /start -> Init welcome message to flizix :)\n
-            /help -> Show help according to current menu and all available commands in there. Also you can use \"/help command\"
-            to extract help to specified command. Example: <u>/help earn</u>\n
-            /addMe -> This command subscribe you to flizix platform\n
-            /earn -> Set/Update month earn\n
-            /recPay -> Enters to recurrent payments menu where you can manage them
-        """)
-        self.sender.sendMessage(message, parse_mode = "HTML")
+    def help(self, command=None):
+        #Search command's help if needed
+        if command:
+            for c in self.all_commands:
+                cr = c.replace("/", "")
+                if command == cr:
+                    self.sender.sendMessage(self.all_commands[c]['help'], parse_mode="HTML")
+                    return
+
+            self.sender.sendMessage("Command not found :(", parse_mode="HTML")
+            return
+        # This avoids answer "Really?" which is default answer to help command as a joke!
+        if self.current_command['name'] == 'help':
+            if self.last_command is not None and self.last_command['name'] != "help":
+                # If not command provided send current command help
+                self.sender.sendMessage(self.last_command['help'], parse_mode="HTML")
+            else:
+                self.sender.sendMessage(self.default_help, parse_mode = "HTML")
 
     def default(self):
         # TODO: Write default message when wrong command
